@@ -1,4 +1,3 @@
-// AudioAnalyzer.js
 import React, { useRef, useEffect, useState } from 'react';
 
 const AudioAnalyzer = ({ onAudioData }) => {
