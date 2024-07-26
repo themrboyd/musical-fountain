@@ -162,7 +162,8 @@ const AudioAnalyzer = ({ onAudioData, onPlayStateChange }) => {
         audioRef.current.pause();
         setIsPlaying(false);
         onPlayStateChange(false);
-      }
+        console.log("Paused audio, setting isPlaying to false");
+    }
     }
   };
 
