@@ -3,7 +3,7 @@ import WaterParticles from './WaterParticles';
 import FountainBase from './FountainBase';
 import { Html } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
-
+import LightSystem from './LightSystem';
 const Fountain = ({ audioData, isPlaying }) => {
     const [particleKey, setParticleKey] = useState(0);
     
@@ -47,6 +47,7 @@ const Fountain = ({ audioData, isPlaying }) => {
                     audioData={audioData} // ส่งข้อมูลเสียงไปยัง WaterParticles
                 />
                 <FountainBase radius={fountainRadius} height={fountainRadius * 0.25} />
+                <LightSystem audioData={audioData} intensity={intensity} />
             </Suspense>
         </group>
     );
