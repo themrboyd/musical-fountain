@@ -1,15 +1,14 @@
 import React, { useRef, useMemo, useCallback, useEffect } from 'react';
-import { useFrame, useLoader, useThree } from '@react-three/fiber';
+import { useFrame, useLoader } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TextureLoader } from 'three';
 import { vertexShader, fragmentShader } from '../shaders.js';
-import { useTexture, useCubeTexture } from '@react-three/drei';
+import { useCubeTexture } from '@react-three/drei';
 
-const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, audioData }) => {
+const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, audioData, pattern = 'spray', gravity = 0.3 }) => {
 
     const mesh = useRef();
     const light = useRef();
-    const { gl } = useThree();
 
     const texture = useLoader(TextureLoader, '/images/water_drop_texture.png');
     const envMap = useCubeTexture(
@@ -17,21 +16,68 @@ const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, aud
         { path: '/images/envmap/' }
     );
 
-    const resetParticle = useCallback((index, positions, velocities, sizes) => {
+    const resetParticle = useCallback((index, positions, velocities, sizes, currentPattern) => {
         const i3 = index * 3;
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * 0.1;
-      
-        positions[i3] = Math.cos(angle) * radius || 0;
-        positions[i3 + 1] = 0;
-        positions[i3 + 2] = Math.sin(angle) * radius || 0;
-      
-        const speed = Math.random() * 0.5 + 0.5;
-        velocities[i3] = (Math.cos(angle) * speed * 0.1) || 0;
-        velocities[i3 + 1] = speed || 0.1;
-        velocities[i3 + 2] = (Math.sin(angle) * speed * 0.1) || 0;
-      
-        sizes[index] = Math.random() * 0.1 + 0.05 || 0.05;
+        
+        let angle, radius, speed, vx, vy, vz, size;
+
+        switch(currentPattern) {
+            case 'circular':
+                angle = Math.random() * Math.PI * 2;
+                radius = Math.random() * 0.5;
+                positions[i3] = Math.cos(angle) * radius;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = Math.sin(angle) * radius;
+                speed = Math.random() * 0.3 + 0.4;
+                vx = Math.cos(angle) * speed * 0.15;
+                vy = speed * 1.2;
+                vz = Math.sin(angle) * speed * 0.15;
+                size = Math.random() * 0.08 + 0.04;
+                break;
+
+            case 'cascade':
+                positions[i3] = (Math.random() - 0.5) * 0.8;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = (Math.random() - 0.5) * 0.8;
+                speed = Math.random() * 0.6 + 0.3;
+                vx = (Math.random() - 0.5) * 0.05;
+                vy = speed * 0.8;
+                vz = (Math.random() - 0.5) * 0.05;
+                size = Math.random() * 0.06 + 0.03;
+                break;
+
+            case 'jet':
+                angle = Math.random() * Math.PI * 2;
+                radius = Math.random() * 0.05;
+                positions[i3] = Math.cos(angle) * radius;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = Math.sin(angle) * radius;
+                speed = Math.random() * 0.8 + 0.6;
+                vx = (Math.random() - 0.5) * 0.02;
+                vy = speed * 1.5;
+                vz = (Math.random() - 0.5) * 0.02;
+                size = Math.random() * 0.12 + 0.08;
+                break;
+
+            case 'spray':
+            default:
+                angle = Math.random() * Math.PI * 2;
+                radius = Math.random() * 0.1;
+                positions[i3] = Math.cos(angle) * radius || 0;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = Math.sin(angle) * radius || 0;
+                speed = Math.random() * 0.5 + 0.5;
+                vx = (Math.cos(angle) * speed * 0.1) || 0;
+                vy = speed || 0.1;
+                vz = (Math.sin(angle) * speed * 0.1) || 0;
+                size = Math.random() * 0.1 + 0.05 || 0.05;
+                break;
+        }
+
+        velocities[i3] = vx;
+        velocities[i3 + 1] = vy;
+        velocities[i3 + 2] = vz;
+        sizes[index] = size;
     }, []);
 
 
@@ -42,14 +88,14 @@ const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, aud
             const sizes = mesh.current.geometry.attributes.size.array;
 
             for (let i = 0; i < count; i++) {
-                resetParticle(i, positions, velocities, sizes);
+                resetParticle(i, positions, velocities, sizes, pattern);
             }
 
             mesh.current.geometry.attributes.position.needsUpdate = true;
             mesh.current.geometry.attributes.velocity.needsUpdate = true;
             mesh.current.geometry.attributes.size.needsUpdate = true;
         }
-    }, [count, resetParticle]);
+    }, [count, resetParticle, pattern]);
 
     const particleSystem = useMemo(() => {
         const positions = new Float32Array(count * 3);
@@ -57,7 +103,7 @@ const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, aud
         const sizes = new Float32Array(count);
     
         for (let i = 0; i < count; i++) {
-            resetParticle(i, positions, velocities, sizes);
+            resetParticle(i, positions, velocities, sizes, pattern);
         }
     
        // ตรวจสอบค่า NaN
@@ -69,7 +115,7 @@ const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, aud
         }
     
         return { positions, velocities, sizes };
-    }, [count, resetParticle]);
+    }, [count, resetParticle, pattern]);
 
     
     const timeRef = useRef(0);
@@ -113,13 +159,12 @@ const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, aud
     
             const bassIntensity = audioData ? audioData.bass / 255 : 0.5;
             const midIntensity = audioData ? audioData.mid / 255 : 0.5;
-            const trebleIntensity = audioData ? audioData.treble / 255 : 0.5;
     
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
     
                 velocities[i3] *= 0.99;
-                velocities[i3 + 1] -= 9.81 * delta * 0.05 * (1 - midIntensity);
+                velocities[i3 + 1] -= 9.81 * delta * gravity * (1 - midIntensity);
                 velocities[i3 + 2] *= 0.99;
     
                 const waveOffset = Math.sin(timeRef.current * 2 + i * 0.1) * 0.02;
@@ -130,11 +175,11 @@ const WaterParticles = ({ count = 50000, color = '#00ffff', intensity = 0.5, aud
                 positions[i3 + 2] = isNaN(positions[i3 + 2]) ? 0 : positions[i3 + 2] + velocities[i3 + 2] * intensity * delta;
     
                 if (positions[i3 + 1] < 0 || 
-                    Math.abs(positions[i3]) > 1 || 
-                    Math.abs(positions[i3 + 2]) > 1 ||
+                    Math.abs(positions[i3]) > 1.5 || 
+                    Math.abs(positions[i3 + 2]) > 1.5 ||
                     positions[i3 + 1] > 5 + bassIntensity * 2 ||
                     isNaN(positions[i3]) || isNaN(positions[i3 + 1]) || isNaN(positions[i3 + 2])) {
-                    resetParticle(i, positions, velocities, sizes);
+                    resetParticle(i, positions, velocities, sizes, pattern);
                 }
             }
     
