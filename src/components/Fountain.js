@@ -1,0 +1,77 @@
+import React, { useEffect, useMemo, useState, Suspense } from 'react';
+import WaterParticles from './WaterParticles';
+import FountainBase from './FountainBase';
+import { Html } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
+import LightSystem from './LightSystem';
+const Fountain = ({ audioData, isPlaying, fountainPattern, waterColor, particleCount, gravity, autoPattern }) => {
+    const [particleKey, setParticleKey] = useState(0);
+    const [currentPattern, setCurrentPattern] = useState(fountainPattern);
+    const [beatCount, setBeatCount] = useState(0);
+    const [lastBeat, setLastBeat] = useState(false);
+
+    const patterns = useMemo(() => ['spray', 'cascade', 'jet', 'circular'], []);
+    
+    const { viewport } = useThree();
+    const fountainRadius = Math.min(viewport.width, viewport.height) * 0.2;
+
+    useEffect(() => {
+        setCurrentPattern(fountainPattern);
+    }, [fountainPattern]);
+
+    useEffect(() => {
+        if (autoPattern && audioData && audioData.beat && !lastBeat) {
+            setBeatCount(prev => {
+                const newCount = prev + 1;
+                if (newCount % 4 === 0) {
+                    const currentIndex = patterns.indexOf(currentPattern);
+                    const nextIndex = (currentIndex + 1) % patterns.length;
+                    setCurrentPattern(patterns[nextIndex]);
+                    setParticleKey(prevKey => prevKey + 1);
+                }
+                return newCount;
+            });
+        }
+        setLastBeat(audioData && audioData.beat);
+    }, [audioData, autoPattern, lastBeat, currentPattern, patterns]);
+  
+    useEffect(() => {
+        setParticleKey(prevKey => prevKey + 1);
+    }, [isPlaying]);
+
+    useEffect(() => {
+    }, [audioData]);
+
+    const intensity = useMemo(() => {
+        if (isPlaying && audioData && audioData.fullSpectrum && audioData.fullSpectrum.length > 0) {
+            const avgFrequency = audioData.fullSpectrum.slice(0, 10).reduce((sum, val) => sum + val, 0) / 10;
+            const calculatedIntensity = (avgFrequency / 255) * 2; // เพิ่มค่าความเข้มขึ้นเป็นสองเท่า
+            
+            return Math.min(calculatedIntensity, 1); // จำกัดค่าสูงสุดที่ 1
+        }
+        return 0.01;  // ค่าต่ำสุดเมื่อไม่มีการเล่นเพลง
+    }, [isPlaying, audioData]);
+
+
+
+
+    return (
+        <group>
+            <Suspense fallback={<Html>Loading...</Html>}>
+                <WaterParticles 
+                    key={`${particleKey}-${particleCount}`}
+                    count={particleCount}
+                    color={waterColor}
+                    intensity={isPlaying ? intensity : 0.01}
+                    audioData={audioData}
+                    pattern={currentPattern}
+                    gravity={gravity}
+                />
+                <FountainBase radius={fountainRadius} height={fountainRadius * 0.25} />
+                <LightSystem audioData={audioData} intensity={intensity} />
+            </Suspense>
+        </group>
+    );
+};
+
+export default Fountain;
